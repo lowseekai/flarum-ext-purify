@@ -19,7 +19,7 @@ app.initializers.add('justoverclock/flarum-ext-purify', () => {
       type: 'text',
       label: app.translator.trans('flarum-ext-purify.admin.badWords'),
       help: app.translator.trans('flarum-ext-purify.admin.additemdesc'),
-      placeholder: 'word1,word2,word3',
+      placeholder: '词语1,词语2,词语3',
     })
     .registerSetting({
       setting: 'justoverclock-purify.AlsoEmail',
@@ -37,6 +37,6 @@ app.initializers.add('justoverclock/flarum-ext-purify', () => {
       type: 'text',
       label: app.translator.trans('flarum-ext-purify.admin.customregexp'),
       help: app.translator.trans('flarum-ext-purify.admin.customregexpdesc'),
-      placeholder: 'a custom regex (e.g. #\\((.*?)\\)#)',
+      placeholder: '自定义正则表达式，例如：#\\((.*?)\\)#',
     });
 });

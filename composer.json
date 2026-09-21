@@ -1,6 +1,6 @@
 {
   "name": "justoverclock/flarum-ext-purify",
-  "description": "Bad words filter for post",
+  "description": "帖子敏感词过滤工具",
   "keywords": [
       "purify",
       "bad words",

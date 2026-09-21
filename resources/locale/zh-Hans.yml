@@ -1,0 +1,10 @@
+flarum-ext-purify:
+  forum:
+    obscure: '[已净化]'
+  admin:
+    badWords: 添加敏感词黑名单
+    additemdesc: 多个词请使用英文逗号分隔，例如：词语1,词语2,词语3
+    hidemail: 自动隐藏邮箱地址
+    customreg: 使用自定义正则表达式
+    customregexp: 自定义正则表达式
+    customregexpdesc: 在这里填写要匹配的正则表达式，例如：(flarum|best|extension) 可隐藏这 3 个词
