@@ -26,9 +26,9 @@ return [
         ->css(__DIR__.'/resources/less/admin.less'),
     new Extend\Locales(__DIR__.'/resources/locale'),
     (new Extend\Event())
-    ->subscribe(ObscureBadWords::class),
+        ->subscribe(ObscureBadWords::class),
     (new Extend\Event())
-    ->subscribe(ObscureEmail::class),
+        ->subscribe(ObscureEmail::class),
     (new Extend\Event())
         ->subscribe(CustomPurifier::class),
 ];

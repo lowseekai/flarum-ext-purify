@@ -11,61 +11,63 @@
 
 namespace Justoverclock\Purify\Listeners;
 
+use Flarum\Post\Event\Saving;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Contracts\Events\Dispatcher;
-use Flarum\Post\Event\Saving;
+use Justoverclock\Purify\Support\TextObscurer;
 
 class CustomPurifier
 {
-    protected $settings;
+    protected SettingsRepositoryInterface $settings;
 
     public function __construct(SettingsRepositoryInterface $settings)
     {
         $this->settings = $settings;
     }
 
-    public function subscribe(Dispatcher $events)
+    public function subscribe(Dispatcher $events): void
     {
-        $events->listen(Saving::class, [$this, 'customPurifier']);
+        $events->listen(Saving::class, $this->customPurifier(...));
     }
 
-    public function isRegexValid($regex)
+    public function customPurifier(Saving $event): void
     {
-        return @preg_match($regex, '') !== false;
-    }
-
-    public function customPurifier(Saving $event)
-    {
-        $post = $event->post;
-        $content = $post->content;
-
-        if (!$this->settings->get('justoverclock-purify.regexcustom')) {
+        if (!$this->isEnabled('justoverclock-purify.CustomRegexp')) {
             return;
         }
 
         $customPurifierPattern = $this->settings->get('justoverclock-purify.regexcustom');
+        $pattern = $this->normalizePattern($customPurifierPattern);
 
-        if (!$this->isRegexValid($customPurifierPattern)) {
+        if ($pattern === null) {
             return;
         }
 
-        if (is_array($content) && isset($content['raw'])) {
-            $content['raw'] = $this->purify($content['raw'], $customPurifierPattern);
-        } else {
-            $content = $this->purify($content, $customPurifierPattern);
-        }
-
-        $post->content = $content;
+        $event->post->content = TextObscurer::transformContent(
+            $event->post->content,
+            fn (string $content): string => TextObscurer::replaceMatches($content, $pattern)
+        );
     }
 
-    private function purify(string $content, string $pattern): string
+    private function normalizePattern(mixed $pattern): ?string
     {
-        preg_match_all($pattern, $content, $matches);
-
-        foreach ($matches[0] as $match) {
-            $content = str_replace($match, str_repeat('*', strlen($match)), $content);
+        if (!is_string($pattern) || trim($pattern) === '') {
+            return null;
         }
 
-        return $content;
+        $pattern = trim($pattern);
+
+        if (@preg_match($pattern, '') !== false) {
+            return $pattern;
+        }
+
+        $pattern = '~(?:'.str_replace('~', '\~', $pattern).')~iu';
+
+        return @preg_match($pattern, '') === false ? null : $pattern;
+    }
+
+    private function isEnabled(string $key): bool
+    {
+        return filter_var($this->settings->get($key), FILTER_VALIDATE_BOOLEAN);
     }
 }

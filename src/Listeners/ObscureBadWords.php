@@ -11,14 +11,14 @@
 
 namespace Justoverclock\Purify\Listeners;
 
-
 use Flarum\Settings\SettingsRepositoryInterface;
+use Justoverclock\Purify\Support\TextObscurer;
 use Illuminate\Contracts\Events\Dispatcher;
 use Flarum\Post\Event\Saving;
 
 class ObscureBadWords
 {
-    protected $settings;
+    protected SettingsRepositoryInterface $settings;
 
     public function __construct(SettingsRepositoryInterface $settings)
     {
@@ -26,35 +26,24 @@ class ObscureBadWords
 
     }
 
-    public function subscribe(Dispatcher $events)
+    public function subscribe(Dispatcher $events): void
     {
-        $events->listen(Saving::class, [$this, 'filterPostContent']);
+        $events->listen(Saving::class, $this->filterPostContent(...));
     }
 
-    public function filterPostContent(Saving $event)
+    public function filterPostContent(Saving $event): void
     {
-        $post = $event->post;
-        $content = $post->content;
-
-        if (is_array($content) && isset($content['raw'])) {
-            $content['raw'] = $this->filterOutBadWords($content['raw']);
-        } else {
-            $content = $this->filterOutBadWords($content);
-        }
-
-        $post->content = $content;
+        $event->post->content = TextObscurer::transformContent(
+            $event->post->content,
+            fn (string $content): string => $this->filterOutBadWords($content)
+        );
     }
 
-    private function filterOutBadWords(string $content)
+    private function filterOutBadWords(string $content): string
     {
-
-        if (!$this->settings->get('justoverclock-purify.badWordsList')) {
-            return;
-        }
-
         $badWordsSetting = $this->settings->get('justoverclock-purify.badWordsList');
 
-        if (empty($badWordsSetting)) {
+        if (!is_string($badWordsSetting) || trim($badWordsSetting) === '') {
             return $content;
         }
 
@@ -62,12 +51,13 @@ class ObscureBadWords
 
         foreach ($badWords as $badWord) {
             $badWord = trim($badWord);
+
             if (!empty($badWord)) {
-                $content = preg_replace('/\b' . preg_quote($badWord, '/') . '\b/iu', str_repeat('*', strlen($badWord)), $content);
+                $pattern = '/' . preg_quote($badWord, '/') . '/iu';
+                $content = TextObscurer::replaceMatches($content, $pattern);
             }
         }
 
         return $content;
-
     }
 }

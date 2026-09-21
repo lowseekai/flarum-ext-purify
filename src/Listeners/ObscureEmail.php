@@ -11,57 +11,46 @@
 
 namespace Justoverclock\Purify\Listeners;
 
+use Flarum\Post\Event\Saving;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Contracts\Events\Dispatcher;
-use Flarum\Post\Event\Saving;
+use Justoverclock\Purify\Support\TextObscurer;
 
 class ObscureEmail
 {
-    protected $settings;
+    protected SettingsRepositoryInterface $settings;
 
     public function __construct(SettingsRepositoryInterface $settings)
     {
         $this->settings = $settings;
     }
 
-    public function subscribe(Dispatcher $events)
+    public function subscribe(Dispatcher $events): void
     {
-        $events->listen(Saving::class, [$this, 'obscureEmail']);
+        $events->listen(Saving::class, $this->obscureEmail(...));
     }
 
-    public function obscureEmail(Saving $event)
+    public function obscureEmail(Saving $event): void
     {
-        $post = $event->post;
-        $content = $post->content;
-        $pattern = '/[a-z0-9_\-\+\.]+@[a-z0-9]+\.([a-z]{2,4})(?:\.[a-z]{2})?/i';
-
-        if (!$this->settings->get('justoverclock-purify.AlsoEmail')) {
+        if (!$this->isEnabled('justoverclock-purify.AlsoEmail')) {
             return;
         }
 
-        $emailsShouldBeObscured = $this->settings->get('justoverclock-purify.AlsoEmail');
-
-        if (!$emailsShouldBeObscured) {
-            return;
-        }
-
-        if (is_array($content) && isset($content['raw'])) {
-            $content['raw'] = $this->replaceEmails($content['raw'], $pattern);
-        } else {
-            $content = $this->replaceEmails($content, $pattern);
-        }
-
-        $post->content = $content;
+        $event->post->content = TextObscurer::transformContent(
+            $event->post->content,
+            fn (string $content): string => $this->replaceEmails($content)
+        );
     }
 
-    private function replaceEmails(string $content, string $pattern): string
+    private function replaceEmails(string $content): string
     {
-        preg_match_all($pattern, $content, $matches);
+        $pattern = '/[a-z0-9.!#$%&\'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/iu';
 
-        foreach ($matches[0] as $match) {
-            $content = str_replace($match, str_repeat('*', strlen($match)), $content);
-        }
+        return TextObscurer::replaceMatches($content, $pattern);
+    }
 
-        return $content;
+    private function isEnabled(string $key): bool
+    {
+        return filter_var($this->settings->get($key), FILTER_VALIDATE_BOOLEAN);
     }
 }
